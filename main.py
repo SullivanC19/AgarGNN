@@ -10,8 +10,9 @@ import simple_agar
 
 config = {
     "num_players": 2,
-    "num_pellets": 1,}
-    
+    "num_pellets": 1,
+}
+
 env = gym.make("simple_agar/BaseWorld-v0", **config)
 print(env.reset())
 

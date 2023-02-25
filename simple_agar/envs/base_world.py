@@ -60,7 +60,9 @@ class BaseWorld(gym.Env):
     def reset(self, seed=None):
         super().reset(seed=seed)
 
-        self._player_masses = np.full(self.num_players, self.player_mass_base, dtype=np.float64)
+        self._player_masses = np.full(
+            self.num_players, self.player_mass_base, dtype=np.float64
+        )
         self._player_locations = (
             self.np_random.random((self.num_players, 2)) * self.world_size
         )
@@ -115,23 +117,35 @@ class BaseWorld(gym.Env):
         self._player_radii = np.sqrt(self._player_masses) * self.sqrt_mass_to_radius
 
     def _update_player_distances(self):
-        self._player_to_player_distances = distance_matrix(self._player_locations, self._player_locations)
-        self._player_to_pellet_distances = distance_matrix(self._player_locations, self._pellet_locations)
+        self._player_to_player_distances = distance_matrix(
+            self._player_locations, self._player_locations
+        )
+        self._player_to_pellet_distances = distance_matrix(
+            self._player_locations, self._pellet_locations
+        )
 
     def _update_player_masses(self):
         # add mass for eaten pellets and players
         RR = np.add.outer(self._player_radii, self._player_radii)
-        player_eats_player = ((self._player_to_player_distances < RR) \
-            & (self._player_radii[:, np.newaxis] > self._player_radii[np.newaxis, :])).astype(np.float64)
-        player_eats_pellet = ((self._player_to_pellet_distances < self.pellet_radius) \
-            & (self._player_radii[:, np.newaxis] > self.pellet_radius)).astype(np.float64)
+        player_eats_player = (
+            (self._player_to_player_distances < RR)
+            & (self._player_radii[:, np.newaxis] > self._player_radii[np.newaxis, :])
+        ).astype(np.float64)
+        player_eats_pellet = (
+            (self._player_to_pellet_distances < self.pellet_radius)
+            & (self._player_radii[:, np.newaxis] > self.pellet_radius)
+        ).astype(np.float64)
 
         players_eaten = np.any(player_eats_player, axis=0)
         pellets_eaten = np.any(player_eats_pellet, axis=0)
 
         # divide mass evenly among players that ate the same player or pellet
-        player_eats_player[:, players_eaten] /= np.sum(player_eats_player[:, players_eaten], axis=1, keepdims=True)
-        player_eats_pellet[:, pellets_eaten] /= np.sum(player_eats_pellet[:, pellets_eaten], axis=1, keepdims=True)
+        player_eats_player[:, players_eaten] /= np.sum(
+            player_eats_player[:, players_eaten], axis=1, keepdims=True
+        )
+        player_eats_pellet[:, pellets_eaten] /= np.sum(
+            player_eats_pellet[:, pellets_eaten], axis=1, keepdims=True
+        )
         self._player_masses += np.sum(player_eats_pellet * self.pellet_mass, axis=1)
         self._player_masses += np.sum(player_eats_player * self._player_masses, axis=1)
 
