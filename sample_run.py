@@ -7,6 +7,7 @@ if __name__ == "__main__":
     config = {
         "num_players": 2,
         "num_pellets": 1,
+        "render_mode": "human",
     }
 
     env = gym.make("simple_agar/BaseWorld-v0", **config)
