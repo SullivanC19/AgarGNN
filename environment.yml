@@ -1,65 +1,94 @@
-name: base
+name: simple-agar-gnn
 channels:
-  - anaconda
   - defaults
 dependencies:
+  - appdirs=1.4.4
   - blas=1.0
   - brotlipy=0.7.0
   - bzip2=1.0.8
-  - c-ares=1.18.1
   - ca-certificates=2023.01.10
   - certifi=2022.12.7
   - cffi=1.15.1
   - charset-normalizer=2.0.4
-  - cmake=3.22.1
-  - conda=23.1.0
-  - conda-package-handling=2.0.2
-  - conda-package-streaming=0.7.0
   - cryptography=38.0.4
-  - expat=2.4.9
+  - ffmpeg=4.2.2
+  - fftw=3.3.9
+  - flit-core=3.6.0
+  - freetype=2.12.1
+  - gettext=0.21.0
+  - giflib=5.2.1
+  - gmp=6.2.1
+  - gnutls=3.6.15
+  - icu=58.2
   - idna=3.4
-  - krb5=1.19.4
-  - libcurl=7.87.0
+  - intel-openmp=2021.4.0
+  - jinja2=3.1.2
+  - joblib=1.1.1
+  - jpeg=9e
+  - lame=3.100
+  - lcms2=2.12
+  - lerc=3.0
   - libcxx=14.0.6
-  - libedit=3.1.20221030
-  - libev=4.33
-  - libffi=3.3
-  - libnghttp2=1.46.0
-  - libssh2=1.10.0
-  - libuv=1.44.2
+  - libdeflate=1.8
+  - libffi=3.4.2
+  - libgfortran=5.0.0
+  - libgfortran5=11.3.0
+  - libiconv=1.16
+  - libidn2=2.3.2
+  - libopus=1.3.1
+  - libpng=1.6.37
+  - libtasn1=4.16.0
+  - libtiff=4.5.0
+  - libunistring=0.9.10
+  - libvpx=1.7.0
+  - libwebp=1.2.4
+  - libwebp-base=1.2.4
+  - libxml2=2.9.14
+  - llvm-openmp=14.0.6
   - lz4-c=1.9.4
+  - markupsafe=2.1.1
+  - mkl=2021.4.0
+  - mkl-service=2.4.0
+  - mkl_fft=1.3.1
+  - mkl_random=1.2.2
   - ncurses=6.4
-  - nomkl=3.0
+  - nettle=3.7.3
+  - numpy=1.23.5
+  - numpy-base=1.23.5
+  - openh264=2.1.1
   - openssl=1.1.1t
+  - packaging=22.0
+  - pillow=9.3.0
   - pip=22.3.1
-  - pluggy=1.0.0
-  - pybind11=2.10.1
-  - pybind11-global=2.10.1
-  - pycosat=0.6.4
+  - pooch=1.4.0
+  - psutil=5.9.0
   - pycparser=2.21
   - pyopenssl=22.0.0
+  - pyparsing=3.0.9
   - pysocks=1.7.1
-  - python=3.9.12
-  - python.app=3
+  - python=3.9.16
   - readline=8.2
   - requests=2.28.1
-  - rhash=1.4.1
-  - ruamel.yaml=0.17.21
-  - ruamel.yaml.clib=0.2.6
+  - scipy=1.10.0
   - setuptools=65.6.3
+  - six=1.16.0
   - sqlite=3.40.1
+  - threadpoolctl=2.2.0
   - tk=8.6.12
-  - toolz=0.12.0
   - tqdm=4.64.1
+  - typing_extensions=4.4.0
   - tzdata=2022g
   - urllib3=1.26.14
   - wheel=0.38.4
+  - x264=1!157.20191217
   - xz=5.2.10
   - zlib=1.2.13
-  - zstandard=0.19.0
   - zstd=1.5.2
   - pip:
-      - engineering-notation==0.7.0
-      - numpy==1.24.1
-      - tk-tools==0.16.0
-prefix: /Users/colinsullivan/miniconda3
+      - cloudpickle==2.2.1
+      - gymnasium==0.27.0
+      - gymnasium-notices==0.0.1
+      - importlib-metadata==6.0.0
+      - jax-jumpy==0.2.0
+      - shimmy==0.2.1
+      - zipp==3.14.0
