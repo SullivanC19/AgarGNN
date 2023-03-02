@@ -1,11 +1,13 @@
 import gymnasium as gym
 from gymnasium import spaces
+import pygame
 
 import numpy as np
 from scipy.spatial import distance_matrix
 
 
 class BaseWorld(gym.Env):
+    metadata = {"render_modes": ["human"], "render_fps": 3}
     def __init__(
         self,
         num_players: int = 1,
@@ -17,6 +19,7 @@ class BaseWorld(gym.Env):
         player_speed_scale: float = 10.0,
         world_size: int = 500,
         sqrt_mass_to_radius: float = 1.0,
+        render_mode: str = None,
     ):
 
         self.num_players = num_players
@@ -57,6 +60,13 @@ class BaseWorld(gym.Env):
             }
         )
 
+        # rendering setup
+        assert render_mode is None or render_mode in self.metadata["render_modes"]
+        self.render_mode = render_mode
+        self.window = None
+        self.clock = None
+        self.window_size = world_size
+
     def reset(self, seed=None):
         super().reset(seed=seed)
 
@@ -76,6 +86,9 @@ class BaseWorld(gym.Env):
         observation = self._get_observation()
         info = self._get_info()
 
+        if self.render_mode == "human":
+            self.render()
+
         return observation, info
 
     def step(self, actions):
@@ -93,15 +106,60 @@ class BaseWorld(gym.Env):
         truncated = self._get_truncated()
         info = self._get_info()
 
+        if self.render_mode == "human":
+            self.render()
+
         return observation, reward, terminated, truncated, info
 
-    def render(self, mode="human"):
-        # TODO @macnew implement this
-        ...
+    def render(self):
+        # TODO @lijandrew implement this
+        if self.window is None and self.render_mode == "human":
+            pygame.init()
+            pygame.display.init()
+            self.window = pygame.display.set_mode(
+                (self.window_size, self.window_size)
+            )
+        if self.clock is None and self.render_mode == "human":
+            self.clock = pygame.time.Clock()
+        canvas = pygame.Surface((self.window_size, self.window_size))
+        canvas.fill((255, 255, 255))
+        
+        for i in range(self.num_players):
+            x = self._player_locations[i][0]
+            y = self._player_locations[i][1]
+            radius = self._player_radii[i]
+            pygame.draw.circle(
+                canvas,
+                (255, 0, 0),
+                (x, self.world_size - y - 1),  # correct for inverted y
+                radius
+            )
+
+        for i in range(self.num_pellets):
+            x = self._pellet_locations[i][0]
+            y = self._pellet_locations[i][1]
+            radius = self.pellet_radius
+            pygame.draw.circle(
+                canvas,
+                (255, 0, 0),
+                (x, self.world_size - y - 1),  # correct for inverted y
+                radius
+            )
+
+        if self.render_mode == "human":
+            # The following line copies our drawings from `canvas` to the visible window
+            self.window.blit(canvas, canvas.get_rect())
+            pygame.event.pump()
+            pygame.display.update()
+
+            # We need to ensure that human-rendering occurs at the predefined framerate.
+            # The following line will automatically add a delay to keep the framerate stable.
+            self.clock.tick(self.metadata["render_fps"])
 
     def close(self):
-        # TODO @macnew implement this
-        ...
+        if self.window is not None:
+            pygame.display.quit()
+            pygame.quit()
 
     def _update_player_locations(self, actions):
         self._player_locations = np.clip(

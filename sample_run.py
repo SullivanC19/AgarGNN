@@ -6,11 +6,12 @@ import simple_agar
 if __name__ == "__main__":
     config = {
         "num_players": 2,
-        "num_pellets": 1,
+        "num_pellets": 1000,
+        "render_mode": "human",
     }
 
     env = gym.make("simple_agar/BaseWorld-v0", **config)
     print(env.reset())
 
-    for i in range(10):
+    for i in range(1000):
         print(env.step(np.array([1, 1])))
