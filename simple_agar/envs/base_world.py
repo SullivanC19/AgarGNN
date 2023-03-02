@@ -7,7 +7,7 @@ from scipy.spatial import distance_matrix
 
 
 class BaseWorld(gym.Env):
-    metadata = {"render_modes": ["human"], "render_fps": 4}
+    metadata = {"render_modes": ["human"], "render_fps": 3}
     def __init__(
         self,
         num_players: int = 1,
@@ -65,7 +65,7 @@ class BaseWorld(gym.Env):
         self.render_mode = render_mode
         self.window = None
         self.clock = None
-        self.window_size = 512
+        self.window_size = world_size
 
     def reset(self, seed=None):
         super().reset(seed=seed)
@@ -111,9 +111,9 @@ class BaseWorld(gym.Env):
 
         return observation, reward, terminated, truncated, info
 
-    def render(self, mode="human"):
+    def render(self):
         # TODO @lijandrew implement this
-        if self.render_mode == "human":
+        if self.window is None and self.render_mode == "human":
             pygame.init()
             pygame.display.init()
             self.window = pygame.display.set_mode(
@@ -124,15 +124,27 @@ class BaseWorld(gym.Env):
         canvas = pygame.Surface((self.window_size, self.window_size))
         canvas.fill((255, 255, 255))
         
-        # Test rectangle
-        pygame.draw.rect(
-            canvas,
-            (255, 0, 0),
-            pygame.Rect(
-                (0, 0),
-                (100, 100)
-            ),
-        )
+        for i in range(self.num_players):
+            x = self._player_locations[i][0]
+            y = self._player_locations[i][1]
+            radius = self._player_radii[i]
+            pygame.draw.circle(
+                canvas,
+                (255, 0, 0),
+                (x, self.world_size - y - 1),  # correct for inverted y
+                radius
+            )
+
+        for i in range(self.num_pellets):
+            x = self._pellet_locations[i][0]
+            y = self._pellet_locations[i][1]
+            radius = self.pellet_radius
+            pygame.draw.circle(
+                canvas,
+                (255, 0, 0),
+                (x, self.world_size - y - 1),  # correct for inverted y
+                radius
+            )
 
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
@@ -142,8 +154,7 @@ class BaseWorld(gym.Env):
 
             # We need to ensure that human-rendering occurs at the predefined framerate.
             # The following line will automatically add a delay to keep the framerate stable.
-            self.clock.tick(60) # TODO: make configurable using metadata value
-            # self.clock.tick(self.metadata["render_fps"])
+            self.clock.tick(self.metadata["render_fps"])
 
     def close(self):
         if self.window is not None:
