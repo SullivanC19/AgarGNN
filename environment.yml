@@ -31,6 +31,8 @@ dependencies:
   - libcxx=14.0.6
   - libdeflate=1.8
   - libffi=3.4.2
+  - libgfortran=5.0.0
+  - libgfortran5=11.3.0
   - libiconv=1.16
   - libidn2=2.3.2
   - libopus=1.3.1
@@ -88,5 +90,6 @@ dependencies:
       - gymnasium-notices==0.0.1
       - importlib-metadata==6.0.0
       - jax-jumpy==0.2.0
+      - pygame==2.2.0
       - shimmy==0.2.1
       - zipp==3.14.0
