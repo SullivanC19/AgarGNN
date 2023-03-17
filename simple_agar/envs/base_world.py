@@ -8,17 +8,19 @@ from scipy.spatial import distance_matrix
 
 class BaseWorld(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 60}
+
     def __init__(
         self,
         num_players: int = 1,
         num_pellets: int = 200,
         pellet_mass: float = 1.0,
         player_mass_base: float = 10.0,
-        player_mass_decay: float = 0.99,
+        player_mass_decay: float = 0.999,
         player_speed_inv_pow: float = -0.44,
         player_speed_scale: float = 10.0,
-        world_size: int = 800,
+        world_size: int = 500,
         sqrt_mass_to_radius: float = 1.0,
+        penalty_per_turn: float = 0.0001,
         render_mode: str = None,
     ):
 
@@ -32,6 +34,7 @@ class BaseWorld(gym.Env):
         self.player_speed_scale = player_speed_scale
         self.world_size = world_size
         self.sqrt_mass_to_radius = sqrt_mass_to_radius
+        self.penalty_per_turn = penalty_per_turn
 
         # noop, right, up, left, down for each player
         self.action_space = MultiDiscrete([5] * num_players)
@@ -118,14 +121,12 @@ class BaseWorld(gym.Env):
         if self.window is None and self.render_mode == "human":
             pygame.init()
             pygame.display.init()
-            self.window = pygame.display.set_mode(
-                (self.window_size, self.window_size)
-            )
+            self.window = pygame.display.set_mode((self.window_size, self.window_size))
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
         canvas = pygame.Surface((self.window_size, self.window_size))
         canvas.fill((255, 255, 255))
-        
+
         for i in range(self.num_players):
             x = self._player_locations[i][0]
             y = self._player_locations[i][1]
@@ -134,7 +135,7 @@ class BaseWorld(gym.Env):
                 canvas,
                 (0, 0, 255),
                 (x, self.world_size - y - 1),  # correct for inverted y
-                radius
+                radius,
             )
 
         for i in range(self.num_pellets):
@@ -145,7 +146,7 @@ class BaseWorld(gym.Env):
                 canvas,
                 (255, 0, 0),
                 (x, self.world_size - y - 1),  # correct for inverted y
-                radius
+                radius,
             )
 
         if self.render_mode == "human":
@@ -167,9 +168,12 @@ class BaseWorld(gym.Env):
         self._player_locations[self._player_is_alive] = np.clip(
             self._player_locations[self._player_is_alive]
             + self._action_to_direction[actions[self._player_is_alive]]
-            * np.power(self._player_masses[self._player_is_alive], self.player_speed_inv_pow)[:, np.newaxis]
+            * np.power(
+                self._player_masses[self._player_is_alive], self.player_speed_inv_pow
+            )[:, np.newaxis]
             * self.player_speed_scale,
-            0, self.world_size,
+            0,
+            self.world_size,
         )
 
     def _update_player_radii(self):
@@ -190,7 +194,10 @@ class BaseWorld(gym.Env):
             & (self._player_radii[:, np.newaxis] > self._player_radii[np.newaxis, :])
         ).astype(np.float64)
         player_eats_pellet = (
-            (self._player_to_pellet_distances < self._player_radii[:, np.newaxis] + self.pellet_radius)
+            (
+                self._player_to_pellet_distances
+                < self._player_radii[:, np.newaxis] + self.pellet_radius
+            )
             & (self._player_radii[:, np.newaxis] > self.pellet_radius)
         ).astype(np.float64)
 
@@ -210,13 +217,14 @@ class BaseWorld(gym.Env):
         # decay player mass
         self._player_masses[self._player_is_alive] = np.maximum(
             self._player_masses[self._player_is_alive] * self.player_mass_decay,
-            self.player_mass_base)
+            self.player_mass_base,
+        )
 
         # set eaten players to 0 mass
         self._player_masses[players_eaten] = 0
 
         return players_eaten, pellets_eaten
-    
+
     def _update_player_is_alive(self, players_eaten):
         self._player_is_alive[players_eaten] = False
 
@@ -240,10 +248,10 @@ class BaseWorld(gym.Env):
         }
 
     def _get_reward(self, prev_masses):
-        return self._player_masses - prev_masses
+        return self._player_masses - prev_masses - self.penalty_per_turn
 
     def _get_terminated(self):
-        return np.count_nonzero(self._player_masses) <= 1
+        return self.num_players > 1 and np.count_nonzero(self._player_masses) <= 1
 
     def _get_truncated(self):
         return False
