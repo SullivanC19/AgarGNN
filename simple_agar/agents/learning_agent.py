@@ -13,6 +13,10 @@ class LearningAgent(BaseAgent):
 
     def act(self, observation, info) -> SupportsInt:
         log_policy = self.policy_module(observation, info)
+        if torch.any(torch.isnan(log_policy)) or torch.any(torch.exp(log_policy) < 0):
+            print("WARNING: log_policy has negative values or NaNs")
+            print(log_policy)
+
         action = torch.multinomial(torch.exp(log_policy), 1)[0]
         self.chosen_action_log_probs.append(log_policy[action])
         return action
@@ -24,11 +28,8 @@ class LearningAgent(BaseAgent):
         episode_rewards = torch.tensor(episode_rewards, dtype=torch.float)
         discount = torch.pow(discount, torch.arange(len(episode_rewards)))
         discounted_returns = torch.flip(torch.cumsum(torch.flip(episode_rewards * discount, dims=(0,)), dim=0), dims=(0,)) / discount
-
-        # normalize
-        normalized_returns = (discounted_returns - torch.mean(discounted_returns)) / (torch.std(discounted_returns) + 1e-5)
         
-        return -torch.sum(torch.stack(self.chosen_action_log_probs) * normalized_returns)
+        return -torch.sum(torch.stack(self.chosen_action_log_probs) * discounted_returns)
     
     def reset(self):
         self.chosen_action_log_probs.clear()

@@ -13,7 +13,8 @@ class MLPModel(nn.Module):
             hidden_layers: int = 3,
             hidden_size: int = 64,
             k_players: int = -1,
-            k_pellets: int = -1):
+            k_pellets: int = -1,
+            negative_slope: float = 0.2):
         super().__init__()
 
         # MLP should only be used for single-player agario environment
@@ -36,6 +37,8 @@ class MLPModel(nn.Module):
                 input_size if l == 0 else hidden_size,
                 hidden_size if l < hidden_layers else output_size
             ) for l in range(hidden_layers + 1)])
+        
+        self.negative_slope = negative_slope
 
     def forward(self, observation, info):
         # get top k_player players and k_pellet pellets in order of distance to player
@@ -58,7 +61,7 @@ class MLPModel(nn.Module):
 
         # feed through network
         for i in range(len(self.lin) - 1):
-            x = F.relu(self.lin[i](x))
+            x = F.leaky_relu(self.lin[i](x), negative_slope=self.negative_slope)
         
         x = self.lin[-1](x)
 
