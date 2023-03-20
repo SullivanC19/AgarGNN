@@ -6,6 +6,8 @@ from gymnasium import Env
 
 from simple_agar.wrappers.single_player import SinglePlayer
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 class MLPModel(nn.Module):
     def __init__(
             self,
@@ -18,8 +20,16 @@ class MLPModel(nn.Module):
         super().__init__()
 
         # MLP should only be used for single-player agario environment
-        # TODO find better way to check this
-        # assert isinstance(env, SinglePlayer)
+        is_single_player = False
+        inner_env = env
+        while hasattr(inner_env, "env"):
+            if isinstance(inner_env, SinglePlayer):
+                is_single_player = True
+                break
+            inner_env = inner_env.env
+
+        if not is_single_player:
+            raise ValueError("MLPModel should only be used for single-player agario environment")
         
         self.env = env
 
@@ -45,26 +55,18 @@ class MLPModel(nn.Module):
         player_ordering = np.argsort(info["player_to_player_distances"][self.env.player_idx])
         pellet_ordering = np.argsort(info["player_to_pellet_distances"][self.env.player_idx])
 
-        topk_ordered_player_masses = torch.from_numpy(observation["player_masses"][player_ordering][:self.k_players])
-        topk_ordered_player_locations = torch.from_numpy(observation["player_locations"][player_ordering][:self.k_players])
-        topk_ordered_pellet_locations = torch.from_numpy(observation["pellet_locations"][pellet_ordering][:self.k_pellets])
-
-        # import pdb; pdb.set_trace()
-
-        x = torch.cat(
+        x = torch.from_numpy(np.hstack(
             [
-                topk_ordered_player_masses,
-                topk_ordered_player_locations.flatten(),
-                topk_ordered_pellet_locations.flatten(),
+                observation["player_masses"][player_ordering][:self.k_players],
+                observation["player_locations"][player_ordering][:self.k_players].flatten(),
+                observation["pellet_locations"][pellet_ordering][:self.k_pellets].flatten(),
             ],
-        ).float()
+        )).to(device).float()
 
         # feed through network
         for i in range(len(self.lin) - 1):
             x = F.leaky_relu(self.lin[i](x), negative_slope=self.negative_slope)
         
         x = self.lin[-1](x)
-
-
         x = F.log_softmax(x)
         return x

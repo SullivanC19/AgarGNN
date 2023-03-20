@@ -4,42 +4,62 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 import gymnasium as gym
+
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
 from tqdm import tqdm
 
+from typing import List, SupportsFloat
+
 from simple_agar.agents.learning_agent import LearningAgent
 from simple_agar.agents.greedy_agent import GreedyAgent
+from simple_agar.agents.random_agent import RandomAgent
+from simple_agar.agents.base_agent import BaseAgent
 from models.mlp_model import MLPModel
 
-NUM_EPISODES = 10000000
-DISCOUNT_FACTOR = .99
-LEARNING_RATE = 1e-3
-K_PELLETS = 1
-HIDDEN_LAYERS = 3
-HIDDEN_SIZE = 32
-NEGATIVE_SLOPE = 0.2
+from constants import MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, HIDDEN_LAYERS, HIDDEN_SIZE, NEGATIVE_SLOPE, DIR_SAVED_MODELS, DIR_RUNS, DIR_RESULTS, WINDOW_SIZE, FPS
 
-MODEL_NAME = f"pellet_eating_mlp_model_h={HIDDEN_LAYERS}_s={HIDDEN_SIZE}_k={K_PELLETS}_lr={LEARNING_RATE}"
-F_MODEL = f"saved_models/{MODEL_NAME}.pt"
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-if __name__ == '__main__':
-    writer = SummaryWriter(f"runs/pellet_eating/{MODEL_NAME}")
+def run_agent(
+        agent: BaseAgent,
+        env: gym.Env,
+        num_episodes: int,
+        render: bool = False
+) -> List[SupportsFloat]:
+    final_masses = []
+    for _ in tqdm(range(num_episodes)):
+        observation, info = env.reset()
+        terminated = truncated = False
 
-    config = {
-        "num_pellets": 10,
-        # "render_mode": "human"
-    }
+        while not (terminated or truncated):
+            action = agent.act(observation, info)
+            observation, _, terminated, truncated, info = env.step(action)
+            if render:
+                env.render()
 
-    env = gym.make('simple_agar/PelletEatingEnv', **config)
-    model = MLPModel(env, hidden_layers=HIDDEN_LAYERS, hidden_size=HIDDEN_SIZE, k_pellets=K_PELLETS, negative_slope=NEGATIVE_SLOPE)
-    # model.load_state_dict(torch.load(F_MODEL))
-    agent = LearningAgent(model)
+        final_masses.append(observation["player_masses"][env.player_idx] * env.max_player_mass)
+        
+    env.close()
+    return final_masses
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+def train_model(
+        model: torch.nn.Module,
+        env: gym.Env,
+        num_episodes: int,
+        f_model=None,
+        model_save_rate=MODEL_SAVE_RATE,
+        discount_factor=DISCOUNT_FACTOR,
+        learning_rate=LEARNING_RATE,
+        writer=None
+    ) -> List[SupportsFloat]:
+    
+    model = model.to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    for i in tqdm(range(NUM_EPISODES)):
+    final_masses = []
+    for i in tqdm(range(num_episodes)):
         observation, info = env.reset()
         episode_rewards = []
         terminated = truncated = False
@@ -50,14 +70,34 @@ if __name__ == '__main__':
             episode_rewards.append(reward)
         
         optimizer.zero_grad()
-        agent.loss(episode_rewards, DISCOUNT_FACTOR).backward()
+        agent.loss(episode_rewards, discount_factor).backward()
         optimizer.step()
         agent.reset()
 
-        if (i + 1) % 100 == 0:
-            torch.save(model.state_dict(), F_MODEL)
+        if f_model is not None and (i + 1) % model_save_rate == 0:
+            torch.save(model.state_dict(), f_model)
 
         unnormalized_final_mass = observation["player_masses"][env.player_idx] * env.max_player_mass
-        writer.add_scalar('Final Mass', unnormalized_final_mass, i)
+        if writer is not None:
+            writer.add_scalar('Final Mass', unnormalized_final_mass, i)
+        final_masses.append(unnormalized_final_mass)
 
     env.close()
+    return final_masses
+
+if __name__ == '__main__':
+    model_name = "mlp_model_k="
+    f_run = os.path.join(DIR_RUNS, "pellet_eating", MODEL_NAME)
+    f_model = os.path.join(DIR_SAVED_MODELS, "pellet_eating", MODEL_NAME)
+
+    writer = SummaryWriter(f"{DIR_RUNS}/pellet_eating/{MODEL_NAME}")
+
+    env = gym.make(
+        'simple_agar/PelletEatingEnv',
+        "num_pellets": 10)
+    model = MLPModel(env, hidden_layers=HIDDEN_LAYERS, hidden_size=HIDDEN_SIZE, k_pellets=K_PELLETS, negative_slope=NEGATIVE_SLOPE)
+    model = model.to(device)
+    model.load_state_dict(torch.load(F_MODEL))
+    agent = LearningAgent(model)
+
+    final_masses = train_model(model, env, NUM_EPISODES, F_MODEL, MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, writer)    

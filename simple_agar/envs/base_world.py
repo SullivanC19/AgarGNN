@@ -5,10 +5,10 @@ import pygame
 import numpy as np
 from scipy.spatial import distance_matrix
 
+from constants import WINDOW_SIZE, FPS
+
 
 class BaseWorld(gym.Env):
-    metadata = {"render_modes": ["human"], "render_fps": 60}
-
     def __init__(
         self,
         num_players: int = 1,
@@ -19,9 +19,7 @@ class BaseWorld(gym.Env):
         player_speed_inv_pow: float = -0.44,
         player_speed_scale: float = 0.03,
         sqrt_mass_to_radius: float = 0.01,
-        penalty_per_step: float = 0.001,
-        render_mode: str = None,
-        window_size: int = 500,
+        penalty_per_step: float = 0.01
     ):
 
         self.num_players = num_players
@@ -40,7 +38,7 @@ class BaseWorld(gym.Env):
         self.max_player_mass = (self.max_player_radius / self.sqrt_mass_to_radius) ** 2
 
         # noop, right, up, left, down for each player
-        self.action_space = MultiDiscrete([5] * num_players)
+        self.action_space = MultiDiscrete([[5] * num_players])
         self._action_to_direction = np.array(
             [
                 [0, 0],
@@ -68,9 +66,6 @@ class BaseWorld(gym.Env):
         )
 
         # rendering setup
-        assert render_mode is None or render_mode in self.metadata["render_modes"]
-        self.render_mode = render_mode
-        self.window_size = window_size
         self.window = None
         self.clock = None
 
@@ -78,24 +73,17 @@ class BaseWorld(gym.Env):
         super().reset(seed=seed, options=options)
 
         self._player_masses = np.full(
-            self.num_players, self.player_mass_base, dtype=np.float64
+            self.num_players, self.player_mass_base
         )
         self._player_is_alive = np.full(self.num_players, True, dtype=np.bool)
-        self._player_locations = (
-            self.np_random.random((self.num_players, 2))
-        )
-        self._pellet_locations = (
-            self.np_random.random((self.num_pellets, 2))
-        )
+        self._player_locations = self.np_random.random((self.num_players, 2))
+        self._pellet_locations = self.np_random.random((self.num_pellets, 2))
 
         self._update_player_distances()
         self._update_player_radii()
 
         observation = self._get_observation()
         info = self._get_info()
-
-        if self.render_mode == "human":
-            self.render()
 
         return observation, info
 
@@ -115,52 +103,47 @@ class BaseWorld(gym.Env):
         truncated = self._get_truncated()
         info = self._get_info()
 
-        if self.render_mode == "human":
-            self.render()
-
         return observation, reward, terminated, truncated, info
 
-    def render(self):
-        if self.window is None and self.render_mode == "human":
+    def render(self, window_size=WINDOW_SIZE, fps=FPS):
+        if self.window is None:
             pygame.init()
             pygame.display.init()
-            self.window = pygame.display.set_mode((self.window_size, self.window_size))
-        if self.clock is None and self.render_mode == "human":
+            self.window = pygame.display.set_mode((window_size, window_size))
+
+        if self.clock is None:
             self.clock = pygame.time.Clock()
-        canvas = pygame.Surface((self.window_size, self.window_size))
+
+        canvas = pygame.Surface((window_size, window_size))
         canvas.fill((255, 255, 255))
 
         for i in range(self.num_players):
-            x = self._player_locations[i][0] * self.window_size
-            y = self._player_locations[i][1] * self.window_size
-            radius = self._player_radii[i] * self.window_size
             pygame.draw.circle(
                 canvas,
                 (0, 0, 255),
-                (x, self.window_size - y - 1),  # correct for inverted y
-                radius,
+                (
+                    self._player_locations[i][0] * window_size,
+                    (1 - self._player_locations[i][1]) * window_size
+                ),
+                self._player_radii[i] * window_size,
             )
-
+        
         for i in range(self.num_pellets):
-            x = self._pellet_locations[i][0] * self.window_size
-            y = self._pellet_locations[i][1] * self.window_size
-            radius = self.pellet_radius * self.window_size
             pygame.draw.circle(
                 canvas,
                 (255, 0, 0),
-                (x, self.window_size - y - 1),  # correct for inverted y
-                radius,
+                (
+                    self._pellet_locations[i][0] * window_size,
+                    (1 - self._pellet_locations[i][1]) * window_size
+                ),
+                self.pellet_radius * window_size,
             )
 
-        if self.render_mode == "human":
-            # The following line copies our drawings from `canvas` to the visible window
-            self.window.blit(canvas, canvas.get_rect())
-            pygame.event.pump()
-            pygame.display.update()
+        self.window.blit(canvas, canvas.get_rect())
+        pygame.event.pump()
+        pygame.display.update()
 
-            # We need to ensure that human-rendering occurs at the predefined framerate.
-            # The following line will automatically add a delay to keep the framerate stable.
-            self.clock.tick(self.metadata["render_fps"])
+        self.clock.tick(fps)
 
     def close(self):
         if self.window is not None:
