@@ -6,17 +6,19 @@ from gymnasium import Env
 
 from simple_agar.wrappers.single_player import SinglePlayer
 
+from constants import HIDDEN_LAYERS, HIDDEN_SIZE, K_PLAYERS, K_PELLETS, NEGATIVE_SLOPE
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class MLPModel(nn.Module):
     def __init__(
             self,
             env: Env,
-            hidden_layers: int = 3,
-            hidden_size: int = 64,
-            k_players: int = -1,
-            k_pellets: int = -1,
-            negative_slope: float = 0.2):
+            hidden_layers: int = HIDDEN_LAYERS,
+            hidden_size: int = HIDDEN_SIZE,
+            k_players: int = K_PLAYERS,
+            k_pellets: int = K_PELLETS,
+            negative_slope: float = NEGATIVE_SLOPE):
         super().__init__()
 
         # MLP should only be used for single-player agario environment

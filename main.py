@@ -18,7 +18,7 @@ from simple_agar.agents.random_agent import RandomAgent
 from simple_agar.agents.base_agent import BaseAgent
 from models.mlp_model import MLPModel
 
-from constants import MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, HIDDEN_LAYERS, HIDDEN_SIZE, NEGATIVE_SLOPE, DIR_SAVED_MODELS, DIR_RUNS, DIR_RESULTS, WINDOW_SIZE, FPS
+from constants import NUM_EPISODES, MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, HIDDEN_LAYERS, HIDDEN_SIZE, NEGATIVE_SLOPE, DIR_SAVED_MODELS, DIR_RUNS, DIR_RESULTS, K_PELLETS, K_PLAYERS
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -48,10 +48,10 @@ def train_model(
         model: torch.nn.Module,
         env: gym.Env,
         num_episodes: int,
-        f_model=None,
         model_save_rate=MODEL_SAVE_RATE,
         discount_factor=DISCOUNT_FACTOR,
         learning_rate=LEARNING_RATE,
+        f_model=None,
         writer=None
     ) -> List[SupportsFloat]:
     
@@ -86,18 +86,19 @@ def train_model(
     return final_masses
 
 if __name__ == '__main__':
-    model_name = "mlp_model_k="
-    f_run = os.path.join(DIR_RUNS, "pellet_eating", MODEL_NAME)
-    f_model = os.path.join(DIR_SAVED_MODELS, "pellet_eating", MODEL_NAME)
+    model_name = "mlp_model_k=1"
 
-    writer = SummaryWriter(f"{DIR_RUNS}/pellet_eating/{MODEL_NAME}")
+    f_run = os.path.join(DIR_RUNS, "pellet_eating", model_name)
+    f_model = os.path.join(DIR_SAVED_MODELS, "pellet_eating", model_name)
+
+    writer = SummaryWriter(f"{DIR_RUNS}/pellet_eating/{model_name}")
 
     env = gym.make(
-        'simple_agar/PelletEatingEnv',
-        "num_pellets": 10)
-    model = MLPModel(env, hidden_layers=HIDDEN_LAYERS, hidden_size=HIDDEN_SIZE, k_pellets=K_PELLETS, negative_slope=NEGATIVE_SLOPE)
+        'simple_agar/PelletEatingEnv')
+    model = MLPModel(env)
     model = model.to(device)
-    model.load_state_dict(torch.load(F_MODEL))
+    model.load_state_dict(torch.load(f_model))
     agent = LearningAgent(model)
 
-    final_masses = train_model(model, env, NUM_EPISODES, F_MODEL, MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, writer)    
+    # final_masses = train_model(model, env, NUM_EPISODES, MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, f_model, writer)    
+    final_masses = run_agent(agent, env, NUM_EPISODES, True)

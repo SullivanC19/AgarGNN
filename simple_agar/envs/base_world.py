@@ -17,8 +17,8 @@ class BaseWorld(gym.Env):
         player_mass_base: float = 4.0,
         player_mass_decay: float = 0.999,
         player_speed_inv_pow: float = -0.44,
-        player_speed_scale: float = 0.03,
-        sqrt_mass_to_radius: float = 0.01,
+        player_speed_scale: float = 0.02,
+        sqrt_mass_to_radius: float = 0.005,
         penalty_per_step: float = 0.01
     ):
 
@@ -38,7 +38,7 @@ class BaseWorld(gym.Env):
         self.max_player_mass = (self.max_player_radius / self.sqrt_mass_to_radius) ** 2
 
         # noop, right, up, left, down for each player
-        self.action_space = MultiDiscrete([[5] * num_players])
+        self.action_space = MultiDiscrete([5] * num_players)
         self._action_to_direction = np.array(
             [
                 [0, 0],

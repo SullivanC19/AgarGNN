@@ -8,6 +8,8 @@ LEARNING_RATE = 1e-4
 # Model Architecture
 HIDDEN_LAYERS = 3
 HIDDEN_SIZE = 32
+K_PELLETS = -1
+K_PLAYERS = -1
 NEGATIVE_SLOPE = 0.2
 
 # Directories
@@ -17,4 +19,4 @@ DIR_RESULTS = "results"
 
 # Rendering
 WINDOW_SIZE = 500
-FPS = 60
+FPS = 30
