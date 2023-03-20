@@ -118,8 +118,14 @@ if __name__ == '__main__':
     # agent = GreedyAgent()
 
     if (args.train):
-        f_model = os.path.join(DIR_SAVED_MODELS, args.env, model_name)
-        writer = SummaryWriter(f_model)
+        d_model = os.path.join(DIR_SAVED_MODELS, args.env)
+        f_model = os.path.join(d_model, f"{model_name}.pt")
+        d_run = os.path.join(DIR_RUNS, args.env, model_name)
+        if not os.path.exists(d_model):
+            os.makedirs(d_model)
+        if not os.path.exists(d_run):
+            os.makedirs(d_run)
+        writer = SummaryWriter(d_run)
         train_model(model, env, int(args.episodes), MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, f_model, writer)      
     elif (args.test):
         final_masses = run_agent(agent, env, int(args.episodes), render=False)
