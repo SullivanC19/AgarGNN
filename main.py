@@ -1,11 +1,10 @@
-
-
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 import gymnasium as gym
 
 import torch
+import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 
 from tqdm import tqdm
@@ -17,6 +16,8 @@ from simple_agar.agents.greedy_agent import GreedyAgent
 from simple_agar.agents.random_agent import RandomAgent
 from simple_agar.agents.base_agent import BaseAgent
 from models.mlp_model import MLPModel
+
+from argparse import ArgumentParser
 
 from constants import NUM_EPISODES, MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, HIDDEN_LAYERS, HIDDEN_SIZE, NEGATIVE_SLOPE, DIR_SAVED_MODELS, DIR_RUNS, DIR_RESULTS, K_PELLETS, K_PLAYERS
 
@@ -42,7 +43,7 @@ def run_agent(
         final_masses.append(observation["player_masses"][env.player_idx] * env.max_player_mass)
         
     env.close()
-    return final_masses
+    return np.mean(final_masses), np.std(final_masses)
 
 def train_model(
         model: torch.nn.Module,
@@ -58,7 +59,7 @@ def train_model(
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    final_masses = []
+    # final_masses = []
     for i in tqdm(range(num_episodes)):
         observation, info = env.reset()
         episode_rewards = []
@@ -85,28 +86,42 @@ def train_model(
             writer.add_scalar('Total Discounted Return', total_discounted_return, i)
             writer.add_scalar('Total Reward', total_episode_reward, i)
             writer.add_scalar('Loss', loss, i)
-        final_masses.append(unnormalized_final_mass)
-
+        # final_masses.append(unnormalized_final_mass)
+    
     env.close()
-    return final_masses
 
 if __name__ == '__main__':
-    k=1
-    model_name = f"mlp_model_k_pellets={k}_lr={LEARNING_RATE}"
+    parser = ArgumentParser()
+    mode_group = parser.add_mutually_exclusive_group(required=True)
+    mode_group.add_argument("--train", action="store_true")
+    mode_group.add_argument("--test", action="store_true")
+    mode_group.add_argument("--show", action="store_true")
+    parser.add_argument("--env", choices=["pellet", "greedy"], required=True)
+    parser.add_argument("--episodes", default=NUM_EPISODES)
+    parser.add_argument("--k_pellets", default=K_PELLETS)
+    parser.add_argument("--k_players", default=K_PLAYERS)
+    parser.add_argument("--hidden_layers", default=HIDDEN_LAYERS)
+    parser.add_argument("--hidden_size", default=HIDDEN_SIZE)
+    # parser.add_argument("--batch_size")
+    args = parser.parse_args()
 
-    f_run = os.path.join(DIR_RUNS, "pellet_eating", model_name)
-    f_model = os.path.join(DIR_SAVED_MODELS, "pellet_eating", model_name)
-
-    writer = SummaryWriter(f"{DIR_RUNS}/pellet_eating/{model_name}")
-
-    env = gym.make(
-        'simple_agar/PelletEatingEnv')
-    model = MLPModel(env, k_pellets=k)
+    env_id = "simple_agar/PelletEatingEnv"
+    if (args.env == "greedy"):
+        env_id = "simple_agar/GreedyOpponentEnv"
+    env = gym.make(env_id)
+    
+    model_name = f"mlp_model_k_pellets={int(args.k_pellets)}_lr={LEARNING_RATE}"
+    model = MLPModel(env, k_pellets=int(args.k_pellets))
     model = model.to(device)
     # model.load_state_dict(torch.load(f_model))
     agent = LearningAgent(model)
     # agent = GreedyAgent()
 
-    # final_masses = train_model(model, env, NUM_EPISODES, MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, None, None)
-    final_masses = train_model(model, env, NUM_EPISODES, MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, f_model, writer)      
-    # final_masses = run_agent(agent, env, NUM_EPISODES, True)
+    if (args.train):
+        f_model = os.path.join(DIR_SAVED_MODELS, args.env, model_name)
+        writer = SummaryWriter(f_model)
+        train_model(model, env, int(args.episodes), MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, f_model, writer)      
+    elif (args.test):
+        final_masses = run_agent(agent, env, int(args.episodes), render=False)
+    else:
+        final_masses = run_agent(agent, env, int(args.episodes), render=True)
