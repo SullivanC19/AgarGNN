@@ -19,7 +19,7 @@ class BaseWorld(gym.Env):
         player_speed_inv_pow: float = -0.44,
         player_speed_scale: float = 0.02,
         sqrt_mass_to_radius: float = 0.005,
-        penalty_per_step: float = 0.01
+        penalty_base_mass: float = 0.04
     ):
 
         self.num_players = num_players
@@ -31,7 +31,7 @@ class BaseWorld(gym.Env):
         self.player_speed_inv_pow = player_speed_inv_pow
         self.player_speed_scale = player_speed_scale
         self.sqrt_mass_to_radius = sqrt_mass_to_radius
-        self.penalty_per_step = penalty_per_step
+        self.penalty_base_mass = penalty_base_mass
 
         self.max_diagonal_distance = np.sqrt(2)
         self.max_player_radius = self.max_diagonal_distance
@@ -233,8 +233,7 @@ class BaseWorld(gym.Env):
 
     def _get_reward(self, prev_masses):
         reward = self._player_masses - prev_masses
-        reward[self._player_masses == self.player_mass_base] -= self.player_mass_base * (1 - self.player_mass_decay)
-        reward -= self.penalty_per_step
+        reward[self._player_masses == self.player_mass_base] -= self.penalty_base_mass
         return reward
 
     def _get_terminated(self):

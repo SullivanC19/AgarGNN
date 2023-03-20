@@ -22,6 +22,7 @@ class SinglePlayer(Wrapper):
         all_actions[self.player_idx] = action
 
         observation, reward, terminated, truncated, info = self.env.step(all_actions)
+        terminated |= not self.env._player_is_alive[self.player_idx]
         reward = reward[self.player_idx]
         
         return observation, reward, terminated, truncated, info

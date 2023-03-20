@@ -1,6 +1,6 @@
 import torch
 from torch.nn import Module
-from typing import SupportsInt, SupportsFloat, List
+from typing import SupportsInt, SupportsFloat, List, Tuple
 
 from simple_agar.agents.base_agent import BaseAgent
 from simple_agar.envs.base_world import BaseWorld
@@ -19,16 +19,16 @@ class LearningAgent(BaseAgent):
         self.chosen_action_log_probs.append(log_policy[action])
         return action
     
-    def loss(self, episode_rewards: List[SupportsFloat], discount: SupportsFloat = 1) -> SupportsFloat:
+    def loss(self, episode_rewards: List[SupportsFloat], discount: SupportsFloat = 1) -> Tuple[SupportsFloat, SupportsFloat]:
         assert len(episode_rewards) == len(self.chosen_action_log_probs)
 
         # get discounted returns
         episode_rewards = torch.tensor(episode_rewards, dtype=torch.float).to(device)
         discount = torch.pow(discount, torch.arange(len(episode_rewards))).to(device)
-        discounted_returns = torch.flip(torch.cumsum(torch.flip(episode_rewards * discount, dims=(0,)), dim=0), dims=(0,)) / discount
-        log_probs = torch.stack(self.chosen_action_log_probs).to(device)
+        discounted_returns = torch.flip(torch.cumsum(torch.flip(episode_rewards * discount, dims=(-1,)), dim=-1), dims=(-1,)) / discount
+        log_probs = torch.hstack(self.chosen_action_log_probs).to(device)
 
-        return -torch.sum(log_probs * discounted_returns)
+        return -torch.sum(log_probs * discounted_returns), torch.sum(discounted_returns)
     
     def reset(self):
         self.chosen_action_log_probs.clear()

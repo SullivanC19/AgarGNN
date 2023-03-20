@@ -70,7 +70,8 @@ def train_model(
             episode_rewards.append(reward)
         
         optimizer.zero_grad()
-        agent.loss(episode_rewards, discount_factor).backward()
+        loss, total_discounted_return = agent.loss(episode_rewards, discount_factor)
+        loss.backward()
         optimizer.step()
         agent.reset()
 
@@ -78,15 +79,19 @@ def train_model(
             torch.save(model.state_dict(), f_model)
 
         unnormalized_final_mass = observation["player_masses"][env.player_idx] * env.max_player_mass
+        total_episode_reward = sum(episode_rewards)
         if writer is not None:
             writer.add_scalar('Final Mass', unnormalized_final_mass, i)
+            writer.add_scalar('Total Discounted Return', total_discounted_return, i)
+            writer.add_scalar('Total Reward', total_episode_reward, i)
+            writer.add_scalar('Loss', loss, i)
         final_masses.append(unnormalized_final_mass)
 
     env.close()
     return final_masses
 
 if __name__ == '__main__':
-    model_name = "mlp_model_k=1"
+    model_name = "mlp_model_k_pellets=1"
 
     f_run = os.path.join(DIR_RUNS, "pellet_eating", model_name)
     f_model = os.path.join(DIR_SAVED_MODELS, "pellet_eating", model_name)
@@ -95,10 +100,11 @@ if __name__ == '__main__':
 
     env = gym.make(
         'simple_agar/PelletEatingEnv')
-    model = MLPModel(env)
+    model = MLPModel(env, k_pellets=1)
     model = model.to(device)
-    model.load_state_dict(torch.load(f_model))
+    # model.load_state_dict(torch.load(f_model))
     agent = LearningAgent(model)
 
-    # final_masses = train_model(model, env, NUM_EPISODES, MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, f_model, writer)    
-    final_masses = run_agent(agent, env, NUM_EPISODES, True)
+    # final_masses = train_model(model, env, NUM_EPISODES, MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, None, None)
+    final_masses = train_model(model, env, NUM_EPISODES, MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, f_model, writer)      
+    # final_masses = run_agent(agent, env, NUM_EPISODES, True)
