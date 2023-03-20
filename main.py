@@ -91,7 +91,8 @@ def train_model(
     return final_masses
 
 if __name__ == '__main__':
-    model_name = "mlp_model_k_pellets=1"
+    k=1
+    model_name = f"mlp_model_k_pellets={k}_lr={LEARNING_RATE}"
 
     f_run = os.path.join(DIR_RUNS, "pellet_eating", model_name)
     f_model = os.path.join(DIR_SAVED_MODELS, "pellet_eating", model_name)
@@ -100,10 +101,11 @@ if __name__ == '__main__':
 
     env = gym.make(
         'simple_agar/PelletEatingEnv')
-    model = MLPModel(env, k_pellets=1)
+    model = MLPModel(env, k_pellets=k)
     model = model.to(device)
     # model.load_state_dict(torch.load(f_model))
     agent = LearningAgent(model)
+    # agent = GreedyAgent()
 
     # final_masses = train_model(model, env, NUM_EPISODES, MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, None, None)
     final_masses = train_model(model, env, NUM_EPISODES, MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, f_model, writer)      

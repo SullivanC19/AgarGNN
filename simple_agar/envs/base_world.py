@@ -12,13 +12,13 @@ class BaseWorld(gym.Env):
     def __init__(
         self,
         num_players: int = 1,
-        num_pellets: int = 50,
+        num_pellets: int = 10,
         pellet_mass: float = 1.0,
         player_mass_base: float = 4.0,
         player_mass_decay: float = 0.999,
         player_speed_inv_pow: float = -0.44,
-        player_speed_scale: float = 0.02,
-        sqrt_mass_to_radius: float = 0.005,
+        player_speed_scale: float = 0.08,
+        sqrt_mass_to_radius: float = 0.01,
         penalty_base_mass: float = 0.04
     ):
 
