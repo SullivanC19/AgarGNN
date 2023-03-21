@@ -104,7 +104,7 @@ class BaseWorld(gym.Env):
 
         return observation, reward, terminated, truncated, info
 
-    def render(self, window_size=WINDOW_SIZE, fps=FPS):
+    def render(self, window_size=WINDOW_SIZE, fps=FPS, highlight_player_index=None):
         if self.window is None:
             pygame.init()
             pygame.display.init()
@@ -119,7 +119,7 @@ class BaseWorld(gym.Env):
         for i in range(self.num_players):
             pygame.draw.circle(
                 canvas,
-                (0, 0, 255),
+                (0, 255, 0) if highlight_player_index == i else (0, 0, 255),
                 (
                     self._player_locations[i][0] * window_size,
                     (1 - self._player_locations[i][1]) * window_size
