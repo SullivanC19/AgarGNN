@@ -5,7 +5,6 @@ from typing import SupportsInt, SupportsFloat, List, Tuple
 from simple_agar.agents.base_agent import BaseAgent
 from simple_agar.envs.base_world import BaseWorld
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class LearningAgent(BaseAgent):
     def __init__(self, policy_module: Module):
