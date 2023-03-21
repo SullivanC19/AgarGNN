@@ -20,7 +20,7 @@ def get_greedy_player_actions(
     up_dist = player_locations[:, 1] - closest_pellet_locations[:, 1]
 
     actions = 1 + np.argmin(
-        np.stack([right_dist, up_dist, left_dist, down_dist], axis=1), axis=1
+        np.stack([right_dist, up_dist, left_dist, down_dist]), axis=0
     )
     
     return actions
@@ -37,4 +37,4 @@ class GreedyAgent(BaseAgent):
             observation["pellet_locations"],
             observation["player_locations"],
             player_indices=[self.player_idx],
-        )[0]
+        )[self.player_idx]

@@ -1,3 +1,5 @@
+import numpy as np
+
 from gymnasium import Wrapper
 from gymnasium.spaces import Discrete
 from typing import SupportsInt
@@ -23,7 +25,7 @@ class SinglePlayer(Wrapper):
 
         observation, reward, terminated, truncated, info = self.env.step(all_actions)
         terminated |= not self.env._player_is_alive[self.player_idx]
-        reward = reward[self.player_idx]
+        reward = reward[np.newaxis, self.player_idx]
         
         return observation, reward, terminated, truncated, info
         

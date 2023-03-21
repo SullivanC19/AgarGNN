@@ -9,33 +9,32 @@ from torch.utils.tensorboard import SummaryWriter
 
 from tqdm import tqdm
 
-from typing import List, SupportsFloat
-
 from simple_agar.agents.learning_agent import LearningAgent
 from simple_agar.agents.greedy_agent import GreedyAgent
 from simple_agar.agents.random_agent import RandomAgent
 from simple_agar.agents.base_agent import BaseAgent
 from models.mlp_model import MLPModel
 
+from trainer import train_model
+
 from argparse import ArgumentParser
 
-from constants import NUM_EPISODES, MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, HIDDEN_LAYERS, HIDDEN_SIZE, NEGATIVE_SLOPE, DIR_SAVED_MODELS, DIR_RUNS, DIR_RESULTS, K_PELLETS, K_PLAYERS
+from constants import NUM_EPISODES, MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, DIR_SAVED_MODELS, DIR_RUNS, DIR_RESULTS, K_PELLET, K_PLAYER
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def run_agent(
         agent: BaseAgent,
         env: gym.Env,
-        num_episodes: int,
+        num_episodes: int = 1,
         render: bool = False
-) -> List[SupportsFloat]:
+):
     final_masses = []
     for _ in tqdm(range(num_episodes)):
         observation, info = env.reset()
         terminated = truncated = False
 
         while not (terminated or truncated):
-            action = agent.act(observation, info)
+            action, _ = agent.act(observation, info)
             observation, _, terminated, truncated, info = env.step(action)
             if render:
                 env.render()
@@ -43,52 +42,10 @@ def run_agent(
         final_masses.append(observation["player_masses"][env.player_idx] * env.max_player_mass)
         
     env.close()
-    return np.mean(final_masses), np.std(final_masses)
 
-def train_model(
-        model: torch.nn.Module,
-        env: gym.Env,
-        num_episodes: int,
-        model_save_rate=MODEL_SAVE_RATE,
-        discount_factor=DISCOUNT_FACTOR,
-        learning_rate=LEARNING_RATE,
-        f_model=None,
-        writer=None
-    ) -> List[SupportsFloat]:
-    
-    model = model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    print(f"Average final mass: {np.mean(final_masses)}")
+    print(f"Std of final mass: {np.std(final_masses)}")
 
-    # final_masses = []
-    for i in tqdm(range(num_episodes)):
-        observation, info = env.reset()
-        episode_rewards = []
-        terminated = truncated = False
-
-        while not (terminated or truncated):
-            action = agent.act(observation, info)
-            observation, reward, terminated, truncated, info = env.step(action)
-            episode_rewards.append(reward)
-        
-        optimizer.zero_grad()
-        loss, total_discounted_return = agent.loss(episode_rewards, discount_factor)
-        loss.backward()
-        optimizer.step()
-        agent.reset()
-
-        if f_model is not None and (i + 1) % model_save_rate == 0:
-            torch.save(model.state_dict(), f_model)
-
-        unnormalized_final_mass = observation["player_masses"][env.player_idx] * env.max_player_mass
-        total_episode_reward = sum(episode_rewards)
-        if writer is not None:
-            writer.add_scalar('Final Mass', unnormalized_final_mass, i)
-            writer.add_scalar('Total Discounted Return', total_discounted_return, i)
-            writer.add_scalar('Total Reward', total_episode_reward, i)
-            writer.add_scalar('Loss', loss, i)
-        # final_masses.append(unnormalized_final_mass)
-    
-    env.close()
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -96,38 +53,59 @@ if __name__ == '__main__':
     mode_group.add_argument("--train", action="store_true")
     mode_group.add_argument("--test", action="store_true")
     mode_group.add_argument("--show", action="store_true")
-    parser.add_argument("--env", choices=["pellet", "greedy"], required=True)
+    parser.add_argument("--load", action="store_true")
+    parser.add_argument("--env", choices=["pellet", "greedy", "self"], required=True)
+    parser.add_argument("--agent", choices=["learning", "greedy", "random"], default="learning")
+    parser.add_argument("--model", choices=["mlp", "gnn"])
     parser.add_argument("--episodes", default=NUM_EPISODES)
-    parser.add_argument("--k_pellets", default=K_PELLETS)
-    parser.add_argument("--k_players", default=K_PLAYERS)
-    parser.add_argument("--hidden_layers", default=HIDDEN_LAYERS)
-    parser.add_argument("--hidden_size", default=HIDDEN_SIZE)
-    # parser.add_argument("--batch_size")
+    parser.add_argument("--k_pellet", default=K_PELLET)
+    parser.add_argument("--k_player", default=K_PLAYER)
     args = parser.parse_args()
 
-    env_id = "simple_agar/PelletEatingEnv"
-    if (args.env == "greedy"):
-        env_id = "simple_agar/GreedyOpponentEnv"
+    env_id = {
+        "pellet": "simple_agar/PelletEatingEnv",
+        "greedy": "simple_agar/GreedyOpponentEnv",
+    }[args.env]
     env = gym.make(env_id)
-    
-    model_name = f"mlp_model_k_pellets={int(args.k_pellets)}_lr={LEARNING_RATE}"
-    model = MLPModel(env, k_pellets=int(args.k_pellets))
-    model = model.to(device)
-    # model.load_state_dict(torch.load(f_model))
-    agent = LearningAgent(model)
-    # agent = GreedyAgent()
 
-    if (args.train):
+    agent = None
+    if args.agent == "learning":
+        assert args.model is not None, "Model architecture must be specified for learning agent"
+
+        if args.model == "mlp":
+            model_name = "mlp_model_k_pellet={}_k_player={}".format(args.k_pellet, args.k_player)
+            model = MLPModel(env, k_pellet=int(args.k_pellet), k_player=int(args.k_player))
+        elif args.model == "gnn":
+            model_name = "gnn_model"
+            model = GNNModel(env, k_pellet=int(args.k_pellet), k_player=int(args.k_player))
+
         d_model = os.path.join(DIR_SAVED_MODELS, args.env)
         f_model = os.path.join(d_model, f"{model_name}.pt")
-        d_run = os.path.join(DIR_RUNS, args.env, model_name)
+
         if not os.path.exists(d_model):
             os.makedirs(d_model)
-        if not os.path.exists(d_run):
-            os.makedirs(d_run)
+        
+        if args.load:
+            assert os.path.exists(f_model), "Model file does not exist"
+            model.load_state_dict(torch.load(f_model))
+
+        agent = LearningAgent(model)
+
+    elif args.agent == "greedy":
+        agent = GreedyAgent()
+
+    elif args.agent == "random":
+        agent = RandomAgent()
+
+
+    if args.train:
+        assert args.agent == "learning", "Only learning agent can be trained"
+        d_run = os.path.join(DIR_RUNS, args.env, model_name)
         writer = SummaryWriter(d_run)
-        train_model(model, env, int(args.episodes), MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, f_model, writer)      
-    elif (args.test):
-        final_masses = run_agent(agent, env, int(args.episodes), render=False)
-    else:
-        final_masses = run_agent(agent, env, int(args.episodes), render=True)
+        train_model(model, env, int(args.episodes), MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE, f_model, writer)
+        
+    elif args.test:
+        run_agent(agent, env, int(args.episodes))
+
+    elif args.show:
+        run_agent(agent, env, render=True)

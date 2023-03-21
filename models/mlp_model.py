@@ -6,7 +6,7 @@ from gymnasium import Env
 
 from simple_agar.wrappers.single_player import SinglePlayer
 
-from constants import HIDDEN_LAYERS, HIDDEN_SIZE, K_PLAYERS, K_PELLETS, NEGATIVE_SLOPE
+from constants import HIDDEN_LAYERS, HIDDEN_SIZE, NEGATIVE_SLOPE, K_PLAYER, K_PELLET
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -14,10 +14,10 @@ class MLPModel(nn.Module):
     def __init__(
             self,
             env: Env,
+            k_player: int = K_PLAYER,
+            k_pellet: int = K_PLAYER,
             hidden_layers: int = HIDDEN_LAYERS,
             hidden_size: int = HIDDEN_SIZE,
-            k_players: int = K_PLAYERS,
-            k_pellets: int = K_PELLETS,
             negative_slope: float = NEGATIVE_SLOPE):
         super().__init__()
 
@@ -35,13 +35,10 @@ class MLPModel(nn.Module):
         
         self.env = env
 
-        num_players = env.num_players if k_players == -1 else min(k_players, env.num_players)
-        num_pellets = env.num_pellets if k_pellets == -1 else min(k_pellets, env.num_pellets)
+        self.k_player = env.num_players if k_player == -1 else min(k_player, env.num_players)
+        self.k_pellet = env.num_pellets if k_pellet == -1 else min(k_pellet, env.num_pellets)
 
-        self.k_players = num_players
-        self.k_pellets = num_pellets
-
-        input_size = self.k_players * 3 + self.k_pellets * 2
+        input_size = self.k_player * 3 + self.k_pellet * 2
         output_size = env.action_space.n
 
         self.lin = nn.ModuleList([
@@ -59,16 +56,16 @@ class MLPModel(nn.Module):
 
         x = torch.from_numpy(np.hstack(
             [
-                observation["player_masses"][player_ordering][:self.k_players],
-                observation["player_locations"][player_ordering][:self.k_players].flatten(),
-                observation["pellet_locations"][pellet_ordering][:self.k_pellets].flatten(),
+                observation["player_masses"][player_ordering][:self.k_player],
+                observation["player_locations"][player_ordering][:self.k_player].flatten(),
+                observation["pellet_locations"][pellet_ordering][:self.k_pellet].flatten(),
             ],
-        )).to(device).float()
+        ).reshape((1, -1))).to(device).float()
 
         # feed through network
         for i in range(len(self.lin) - 1):
             x = F.leaky_relu(self.lin[i](x), negative_slope=self.negative_slope)
         
         x = self.lin[-1](x)
-        x = F.log_softmax(x)
+        x = F.log_softmax(x, dim=-1)
         return x

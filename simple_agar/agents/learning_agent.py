@@ -11,24 +11,9 @@ class LearningAgent(BaseAgent):
     def __init__(self, policy_module: Module):
         super().__init__()
         self.policy_module = policy_module
-        self.chosen_action_log_probs = []
 
-    def act(self, observation, info) -> SupportsInt:
+    def act(self, observation, info):
         log_policy = self.policy_module(observation, info)
-        action = torch.multinomial(torch.exp(log_policy), 1)[0]
-        self.chosen_action_log_probs.append(log_policy[action])
-        return action
-    
-    def loss(self, episode_rewards: List[SupportsFloat], discount: SupportsFloat = 1) -> Tuple[SupportsFloat, SupportsFloat]:
-        assert len(episode_rewards) == len(self.chosen_action_log_probs)
-
-        # get discounted returns
-        episode_rewards = torch.tensor(episode_rewards, dtype=torch.float).to(device)
-        discount = torch.pow(discount, torch.arange(len(episode_rewards))).to(device)
-        discounted_returns = torch.flip(torch.cumsum(torch.flip(episode_rewards * discount, dims=(-1,)), dim=-1), dims=(-1,)) / discount
-        log_probs = torch.hstack(self.chosen_action_log_probs).to(device)
-
-        return -torch.sum(log_probs * discounted_returns), torch.sum(discounted_returns)
-    
-    def reset(self):
-        self.chosen_action_log_probs.clear()
+        action = torch.multinomial(torch.exp(log_policy), 1)
+        log_action_prob = log_policy.gather(1, action)
+        return action.squeeze(-1), log_action_prob.squeeze(-1)
