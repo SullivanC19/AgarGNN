@@ -95,7 +95,7 @@ if __name__ == '__main__':
         agent = GreedyAgent()
 
     elif args.agent == "random":
-        agent = RandomAgent()
+        agent = RandomAgent(env.action_space)
 
 
     if args.train:
