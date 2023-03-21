@@ -15,9 +15,6 @@ from simple_agar.agents.learning_agent import LearningAgent
 from constants import MODEL_SAVE_RATE, DISCOUNT_FACTOR, LEARNING_RATE
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
 def train_model(
         model: torch.nn.Module,
         env: gym.Env,
@@ -29,7 +26,6 @@ def train_model(
         writer: SummaryWriter = None
     ):
 
-    model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     agent = LearningAgent(model)
@@ -70,9 +66,9 @@ def reinforce_loss(
     
     assert len(episode_rewards) == len(log_action_probs)
 
-    episode_rewards = torch.stack(episode_rewards).to(device)
-    log_action_probs = torch.stack(log_action_probs).to(device)
-    discount = torch.pow(discount, torch.arange(len(episode_rewards)))[:, None].to(device)
+    episode_rewards = torch.stack(episode_rewards)
+    log_action_probs = torch.stack(log_action_probs)
+    discount = torch.pow(discount, torch.arange(len(episode_rewards)))[:, None]
 
     # compute discounted returns
     discounted_returns = torch.flip(torch.cumsum(torch.flip(episode_rewards * discount, dims=(0,)), dim=0), dims=(0,)) / discount

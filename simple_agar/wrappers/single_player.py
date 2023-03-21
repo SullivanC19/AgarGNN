@@ -6,6 +6,8 @@ from typing import SupportsInt
 
 from simple_agar.envs.base_world import BaseWorld
 from simple_agar.agents.greedy_agent import get_greedy_player_actions
+
+from constants import WINDOW_SIZE, FPS
     
 
 class SinglePlayer(Wrapper):
@@ -28,4 +30,6 @@ class SinglePlayer(Wrapper):
         reward = reward[np.newaxis, self.player_idx]
         
         return observation, reward, terminated, truncated, info
-        
+
+    def render(self, window_size=WINDOW_SIZE, fps=FPS):
+        self.env.render(window_size=window_size, fps=fps, highlight_player_index=self.player_idx)

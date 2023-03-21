@@ -32,9 +32,9 @@ class GreedyAgent(BaseAgent):
         self.player_idx = player_idx
 
     def act(self, observation, info):
-        return get_greedy_player_actions(
+        return (get_greedy_player_actions(
             info["player_to_pellet_distances"],
             observation["pellet_locations"],
             observation["player_locations"],
             player_indices=[self.player_idx],
-        )[self.player_idx]
+        )[self.player_idx], 0)

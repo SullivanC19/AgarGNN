@@ -8,8 +8,6 @@ from simple_agar.wrappers.single_player import SinglePlayer
 
 from constants import HIDDEN_LAYERS, HIDDEN_SIZE, NEGATIVE_SLOPE, K_PLAYER, K_PELLET
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 class MLPModel(nn.Module):
     def __init__(
             self,
@@ -60,7 +58,7 @@ class MLPModel(nn.Module):
                 observation["player_locations"][player_ordering][:self.k_player].flatten(),
                 observation["pellet_locations"][pellet_ordering][:self.k_pellet].flatten(),
             ],
-        ).reshape((1, -1))).to(device).float()
+        ).reshape((1, -1))).float()
 
         # feed through network
         for i in range(len(self.lin) - 1):

@@ -6,4 +6,4 @@ class RandomAgent(BaseAgent):
         self.action_space = action_space
 
     def act(self, observation, info):
-        return self.action_space.sample()
+        return (self.action_space.sample(), 0)
