@@ -16,14 +16,14 @@ class SinglePlayer(Wrapper):
         self.player_idx = player_idx
         self.action_space = Discrete(env.action_space.nvec[player_idx])
 
-    def step(self, action: SupportsInt):
+    def step(self, action):
         # all other players take greedy actions
         all_actions = get_greedy_player_actions(
             self.env._player_to_pellet_distances,
             self.env._pellet_locations,
             self.env._player_locations,
         )
-        all_actions[self.player_idx] = action
+        all_actions[self.player_idx] = action[self.player_idx]
 
         observation, reward, terminated, truncated, info = self.env.step(all_actions)
         terminated |= not self.env._player_is_alive[self.player_idx]

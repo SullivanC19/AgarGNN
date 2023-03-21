@@ -12,11 +12,12 @@ from constants import HIDDEN_LAYERS, HIDDEN_SIZE, NEGATIVE_SLOPE
 
 
 def construct_hetero_agar_graph(env: Env, observation) -> HeteroData:
-    num_players = env.num_players
+    player_is_alive = observation["player_is_alive"]
+
+    num_players = sum(observation["player_is_alive"])
     num_pellets = env.num_pellets
     pellet_mass = env.pellet_mass / env.max_player_mass
 
-    player_is_alive = observation["player_is_alive"]
     player_masses = torch.from_numpy(observation["player_masses"][player_is_alive])
     player_locations = torch.from_numpy(observation["player_locations"][player_is_alive])
     pellet_locations = torch.from_numpy(observation["pellet_locations"])
@@ -51,6 +52,7 @@ class GNNModel(torch.nn.Module):
         super().__init__()
 
         self.env = env
+
         self.graph_builder = self.get_graph_builder(graph_type)
         self.model = self.get_model(model_type, hidden_layers, hidden_channels, negative_slope)
 
@@ -68,7 +70,10 @@ class GNNModel(torch.nn.Module):
 
     def forward(self, observation, info):
         data = self.graph_builder(self.env, observation)
-        return self.model(data.x_dict, data.edge_index_dict)
+        num_actions = self.env.action_space.n if hasattr(self.env.action_space, "n") else self.env.action_space.nvec[0]
+        player_action_log_policy = torch.zeros((self.env.num_players, num_actions))
+        player_action_log_policy[observation['player_is_alive']] = self.model(data.x_dict, data.edge_index_dict)
+        return player_action_log_policy
     
 
 
@@ -78,12 +83,15 @@ class HeteroGNN(torch.nn.Module):
             env: Env,
             hidden_layers: int = HIDDEN_LAYERS,
             hidden_channels: int = HIDDEN_SIZE,
-            negative_slope: float = NEGATIVE_SLOPE):
+            negative_slope: float = NEGATIVE_SLOPE,
+            player_idx: int = None):
         super().__init__()
     
         self.env = env
         self.negative_slope = negative_slope
         self.convs = nn.ModuleList()
+
+        self.player_idx = env.player_idx if hasattr(env, "player_idx") else None
 
         for _ in range(hidden_layers):
             self.convs.append(
@@ -101,8 +109,10 @@ class HeteroGNN(torch.nn.Module):
     def forward(self, x_dict, edge_index_dict):
         for conv in self.convs:
             x_dict = conv(x_dict, edge_index_dict)
-            x_dict = {key: F.leaky_relu(x, negative_slope=self.negative_slope) for key, x in x_dict.items()}
+            x_dict = {key: F.leaky_relu(x, negative_slope=self.negative_slope, inplace=False) for key, x in x_dict.items()}
         
         x = self.post_mp(x_dict['player'])
-        return F.log_softmax(x, dim=1)
+        if self.player_idx is not None:
+            x = x[self.player_idx]
+        return F.log_softmax(x, dim=-1)
 

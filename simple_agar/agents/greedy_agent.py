@@ -36,5 +36,4 @@ class GreedyAgent(BaseAgent):
             info["player_to_pellet_distances"],
             observation["pellet_locations"],
             observation["player_locations"],
-            player_indices=[self.player_idx],
-        )[self.player_idx], 0)
+            player_indices=[self.player_idx]), 0)

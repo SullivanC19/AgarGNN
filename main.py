@@ -49,6 +49,7 @@ def run_agent(
 
 
 if __name__ == '__main__':
+    torch.autograd.set_detect_anomaly(True)
     parser = ArgumentParser()
     mode_group = parser.add_mutually_exclusive_group(required=True)
     mode_group.add_argument("--train", action="store_true")
@@ -66,6 +67,7 @@ if __name__ == '__main__':
     env_id = {
         "pellet": "simple_agar/PelletEatingEnv",
         "greedy": "simple_agar/GreedyOpponentEnv",
+        "self": "simple_agar/MultiAgentSelfLearningEnv"
     }[args.env]
     env = gym.make(env_id)
 

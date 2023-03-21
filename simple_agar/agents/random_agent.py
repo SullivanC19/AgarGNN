@@ -1,3 +1,5 @@
+import numpy as np
+
 from simple_agar.agents.base_agent import BaseAgent
 
 class RandomAgent(BaseAgent):
@@ -6,4 +8,4 @@ class RandomAgent(BaseAgent):
         self.action_space = action_space
 
     def act(self, observation, info):
-        return (self.action_space.sample(), 0)
+        return np.full((1, 1), self.action_space.sample()), 0

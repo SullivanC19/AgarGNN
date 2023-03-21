@@ -14,5 +14,5 @@ class LearningAgent(BaseAgent):
     def act(self, observation, info):
         log_policy = self.policy_module(observation, info)
         action = torch.multinomial(torch.exp(log_policy), 1)
-        log_action_prob = log_policy.gather(1, action)
+        log_action_prob = torch.gather(log_policy, 1, action.clone()).clone()
         return action.squeeze(-1), log_action_prob.squeeze(-1)
