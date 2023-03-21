@@ -12,14 +12,12 @@ from constants import HIDDEN_LAYERS, HIDDEN_SIZE, NEGATIVE_SLOPE
 
 
 def construct_hetero_agar_graph(env: Env, observation) -> HeteroData:
-    player_is_alive = observation["player_is_alive"]
-
-    num_players = sum(observation["player_is_alive"])
+    num_players = env.num_players
     num_pellets = env.num_pellets
     pellet_mass = env.pellet_mass / env.max_player_mass
 
-    player_masses = torch.from_numpy(observation["player_masses"][player_is_alive])
-    player_locations = torch.from_numpy(observation["player_locations"][player_is_alive])
+    player_masses = torch.from_numpy(observation["player_masses"])
+    player_locations = torch.from_numpy(observation["player_locations"])
     pellet_locations = torch.from_numpy(observation["pellet_locations"])
     
     data = HeteroData()
@@ -32,7 +30,7 @@ def construct_hetero_agar_graph(env: Env, observation) -> HeteroData:
     pellet_idxs = torch.arange(num_pellets)
 
     # NOTE: currently we use all edges
-    data['player', 'to', 'pellet'].edge_index = torch.cartesian_prod(player_idxs, pellet_idxs).T
+    # data['player', 'to', 'pellet'].edge_index = torch.cartesian_prod(player_idxs, pellet_idxs).T
     data['player', 'to', 'player'].edge_index = torch.cartesian_prod(player_idxs, player_idxs).T
     data['pellet', 'to', 'pellet'].edge_index = torch.cartesian_prod(pellet_idxs, pellet_idxs).T
     data['pellet', 'to', 'player'].edge_index = torch.cartesian_prod(pellet_idxs, player_idxs).T
@@ -70,12 +68,8 @@ class GNNModel(torch.nn.Module):
 
     def forward(self, observation, info):
         data = self.graph_builder(self.env, observation)
-        num_actions = self.env.action_space.n if hasattr(self.env.action_space, "n") else self.env.action_space.nvec[0]
-        player_action_log_policy = torch.zeros((self.env.num_players, num_actions))
-        player_action_log_policy[observation['player_is_alive']] = self.model(data.x_dict, data.edge_index_dict)
-        return player_action_log_policy
+        return self.model(data.x_dict, data.edge_index_dict)
     
-
 
 class HeteroGNN(torch.nn.Module):
     def __init__(
@@ -83,21 +77,18 @@ class HeteroGNN(torch.nn.Module):
             env: Env,
             hidden_layers: int = HIDDEN_LAYERS,
             hidden_channels: int = HIDDEN_SIZE,
-            negative_slope: float = NEGATIVE_SLOPE,
-            player_idx: int = None):
+            negative_slope: float = NEGATIVE_SLOPE):
         super().__init__()
     
         self.env = env
         self.negative_slope = negative_slope
         self.convs = nn.ModuleList()
 
-        self.player_idx = env.player_idx if hasattr(env, "player_idx") else None
-
         for _ in range(hidden_layers):
             self.convs.append(
                 pyg_nn.HeteroConv({
                     ('player', 'to', 'player'): pyg_nn.GCNConv(-1, hidden_channels, add_self_loops=False),
-                    ('player', 'to', 'pellet'): pyg_nn.SAGEConv((-1, -1), hidden_channels, add_self_loops=False, aggr='mean'),
+                    # ('player', 'to', 'pellet'): pyg_nn.SAGEConv((-1, -1), hidden_channels, add_self_loops=False, aggr='mean'),
                     ('pellet', 'to', 'player'): pyg_nn.SAGEConv((-1, -1), hidden_channels, add_self_loops=False, aggr='mean'),
                     ('pellet', 'to', 'pellet'): pyg_nn.GCNConv(-1, hidden_channels, add_self_loops=False),
                 }, aggr='sum')
@@ -112,7 +103,5 @@ class HeteroGNN(torch.nn.Module):
             x_dict = {key: F.leaky_relu(x, negative_slope=self.negative_slope, inplace=False) for key, x in x_dict.items()}
         
         x = self.post_mp(x_dict['player'])
-        if self.player_idx is not None:
-            x = x[self.player_idx]
         return F.log_softmax(x, dim=-1)
 
