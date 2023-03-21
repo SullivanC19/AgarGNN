@@ -14,6 +14,7 @@ from simple_agar.agents.greedy_agent import GreedyAgent
 from simple_agar.agents.random_agent import RandomAgent
 from simple_agar.agents.base_agent import BaseAgent
 from models.mlp_model import MLPModel
+from models.gnn_model import GNNModel
 
 from trainer import train_model
 
@@ -77,7 +78,7 @@ if __name__ == '__main__':
             model = MLPModel(env, k_pellet=int(args.k_pellet), k_player=int(args.k_player))
         elif args.model == "gnn":
             model_name = "gnn_model"
-            model = GNNModel(env, k_pellet=int(args.k_pellet), k_player=int(args.k_player))
+            model = GNNModel(env, 'hetero', 'hetero')
 
         d_model = os.path.join(DIR_SAVED_MODELS, args.env)
         f_model = os.path.join(d_model, f"{model_name}.pt")
