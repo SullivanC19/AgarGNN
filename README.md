@@ -1,6 +1,7 @@
 # SimpleAgarGNN
-Hi CS 224W staff! Thank you for taking the time to look at our project.
-To start, run `. ./setup.sh` to set up the conda environment.
+Hi CS 224W staff! Thank you for taking the time to look at our project.  
+To start, make sure you have [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed.  
+Then, run `. ./setup.sh` to set up the conda environment.  
 Next, run `python main.py --show --model=gnn --env=greedy`
 
 ![](res/animated_gnn_agent.gif)
